@@ -1,1 +1,1 @@
-O aplicativo é open source mas logo e nome do app são protegidos e não podem ser usados livrementes em modificações.
+The app is open source, but the logo and app name are protected and cannot be freely used in modifications.
