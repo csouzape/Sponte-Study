@@ -5,21 +5,23 @@ import sys
 import shutil
 import pyttsx3
 
-#Definindo o formato que será mostrado na GUI
+
+# Current time formatted as HH:MM:SS
 horario_atual = time.strftime("%H:%M:%S")
-#Pegando a data local atual
+
+# Get current local time structure
 tempo = time.localtime()
-#Pegando o dia, mes e ano
+
+# Extract individual date/time components
 dia_mes = tempo.tm_mday
 dia_semana = tempo.tm_wday
 mes = tempo.tm_mon
 ano = tempo.tm_year
-#Pegando a hora
 hora = tempo.tm_hour
 
-#Verifica que dia é
+
+# Map numeric weekday to Portuguese abbreviated format
 if dia_semana == 0:
-#Pegando a data atual
     data_atual = time.strftime("Seg %d/%m/%Y")
 elif dia_semana == 1:
     data_atual = time.strftime("Ter %d/%m/%Y")
@@ -34,6 +36,9 @@ elif dia_semana == 5:
 else:
     data_atual = time.strftime("Dom %d/%m/%Y")
 
+
+# Resolve resource path depending on execution environment
+# Handles both normal execution and PyInstaller bundled apps
 def verifica_pasta(caminho):
     if hasattr(sys, "_MEIPASS"):    
         pasta_imagens = sys._MEIPASS
@@ -41,16 +46,24 @@ def verifica_pasta(caminho):
         pasta_imagens = os.path.dirname(sys.executable)
     return os.path.join(pasta_imagens, caminho)
 
-dados = os.path.join(os.getenv("HOME"), ".local", "share")
-pasta = os.path.join(dados, "Sponte Study")
-os.makedirs(pasta, exist_ok=True)
-pasta_db = os.path.join(pasta, "banco.db")
 
-#Abri pasta de imagem
+# Base directory for user application data (~/.local/share)
+dados = os.path.join(os.getenv("HOME"), ".local", "share")
+
+# Application-specific data directory
+pasta = os.path.join(dados, "Sponte Study")
+
+# Ensure the directory exists
+os.makedirs(pasta, exist_ok=True)
+
+# Path to the SQLite database file
+pasta_db = os.path.join(pasta, "banco.db")
+# Image directory used by the application
 imagem_pasta = os.path.join(pasta, "imagens")
 os.makedirs(imagem_pasta, exist_ok=True)
 
-#Copiar arquivos para a pasta de imagens
+# Copy default image assets to the images directory
+# This runs only if the directory is empty
 if not os.listdir(imagem_pasta):
     shutil.copy(verifica_pasta("imagens_app/alerta_padrao.png"), imagem_pasta)
     shutil.copy(verifica_pasta("imagens_app/alerta_azul.png"), imagem_pasta)
@@ -68,8 +81,10 @@ if not os.listdir(imagem_pasta):
     shutil.copy(verifica_pasta("imagens_app/logo.ico"), imagem_pasta)
     shutil.copy(verifica_pasta("imagens_app/Sponte.png"), imagem_pasta)
 
+# Required reading image files that must exist in the directory
 arquivos_leitura = ["leitura_preto.png", "leitura_branco.png"]
 
+# Ensure required files exist in the image directory
 def reinicia_pasta(pasta, arquivos_verifica):
     arquivos = os.listdir(pasta)
 
@@ -78,9 +93,10 @@ def reinicia_pasta(pasta, arquivos_verifica):
             shutil.copy("imagens_app/leitura_preto.png", imagem_pasta)
             shutil.copy("imagens_app/leitura_branco.png", imagem_pasta)
 
+# Validate image directory contents
 reinicia_pasta(imagem_pasta, arquivos_leitura)
 
-#Caminho de arquivos
+# Absolute paths for image assets used by the application
 alerta_padrao = os.path.join(imagem_pasta, "alerta_padrao.png")
 alerta_azul = os.path.join(imagem_pasta, "alerta_azul.png")
 alerta_vermelho = os.path.join(imagem_pasta, "alerta_vermelho.png")
@@ -95,11 +111,13 @@ alerta_azullogus = os.path.join(imagem_pasta, "alerta_azullogus.png")
 leitura_preto = os.path.join(imagem_pasta, "leitura_preto.png")
 leitura_branco = os.path.join(imagem_pasta, "leitura_branco.png")
 
+# Return the current hour from the cached time structure
 def saber_hora():    
     hora_atual = tempo.tm_hour
     time.sleep(1)
     return hora_atual
         
+# Initialize the user database and create required tables
 def banco_user():
     banco = sqlite3.connect(pasta_db)
     cursor = banco.cursor()
@@ -829,13 +847,17 @@ def boa_tarde():
 def boa_noite():
     conexao = sqlite3.connect(pasta_db)
     cursor = conexao.cursor()
+
     nome_usuario = cursor.execute("SELECT nome FROM usuario")
     for nu in nome_usuario:
         nome_usuario = nu
+
     estado_voz = cursor.execute("SELECT estado_da_voz FROM usuario")
     for ev in estado_voz:
         estado_voz = ev
-    if hora >= 18 and hora < 0 and estado_voz[0] == "Ativa" or estado_voz[0] == None:
+
+    if hora >= 18 and (estado_voz[0] == "Ativa" or estado_voz[0] == None):
         voz.say(f"Boa noite {nome_usuario[0]}")
         voz.runAndWait()
+
     conexao.close()
