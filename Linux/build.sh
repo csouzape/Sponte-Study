@@ -10,7 +10,7 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 sudo apt-get install -y python3-pip python3-venv python3-tk
-sudo apt-get install -y espeak espeak-data libespeak-dev python3-dbus
+sudo apt-get install -y espeak espeak-data libespeak-dev python3-dbus file
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -18,11 +18,21 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install customtkinter CTkToolTip pyttsx3 Pillow pygments pyinstaller
 
+if [ ! -f "linuxdeploy-x86_64.AppImage" ]; then
+    wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+    chmod +x linuxdeploy-x86_64.AppImage
+fi
+
+if [ ! -f "linuxdeploy-plugin-appimage-x86_64.AppImage" ]; then
+    wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool-x86_64.AppImage
+    chmod +x appimagetool-x86_64.AppImage
+fi
+
 CTK_PATH=$(python3 -c "import customtkinter; import os; print(os.path.dirname(customtkinter.__file__))")
 
-rm -rf build dist __pycache__ *.spec
+rm -rf build dist __pycache__ *.spec AppDir
 
-pyinstaller --noconfirm --onefile --windowed \
+pyinstaller --noconfirm --onefile \
     --add-data "imagens_app:imagens_app" \
     --add-data "$CTK_PATH:customtkinter" \
     --add-data "CTkCodeBox:CTkCodeBox" \
@@ -40,11 +50,50 @@ pyinstaller --noconfirm --onefile --windowed \
     --name "$APP_NAME" \
     interface.py
 
-if [ -f "dist/$APP_NAME" ]; then
-    chmod +x "dist/$APP_NAME"
-    echo " Build concluído! Executável em: dist/$APP_NAME"
+mkdir -p AppDir/usr/bin
+mkdir -p AppDir/usr/share/applications
+mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+cp "dist/$APP_NAME" "AppDir/usr/bin/$APP_NAME"
+
+if [ -f "imagens_app/logo.png" ]; then
+    cp "imagens_app/logo.png" "AppDir/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png"
+    cp "imagens_app/logo.png" "AppDir/$APP_NAME.png"
 else
-    echo " Falha no build. Verifique os erros acima."
+    convert -size 256x256 xc:#3b82f6 "AppDir/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" 2>/dev/null || \
+    python3 -c "
+from PIL import Image, ImageDraw
+img = Image.new('RGB', (256, 256), color='#3b82f6')
+img.save('AppDir/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png')
+import shutil; shutil.copy('AppDir/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png', 'AppDir/$APP_NAME.png')
+"
+fi
+
+cat > "AppDir/usr/share/applications/$APP_NAME.desktop" << EOF
+[Desktop Entry]
+Name=Sponte Study
+Exec=$APP_NAME
+Icon=$APP_NAME
+Type=Application
+Categories=Education;
+EOF
+
+cp "AppDir/usr/share/applications/$APP_NAME.desktop" "AppDir/$APP_NAME.desktop"
+
+cat > "AppDir/AppRun" << 'EOF'
+#!/bin/bash
+HERE="$(dirname "$(readlink -f "${0}")")"
+exec "$HERE/usr/bin/SponteStudy" "$@"
+EOF
+chmod +x "AppDir/AppRun"
+
+ARCH=x86_64 ./appimagetool-x86_64.AppImage AppDir "${APP_NAME}.AppImage"
+
+if [ -f "${APP_NAME}.AppImage" ]; then
+    chmod +x "${APP_NAME}.AppImage"
+    echo "✅ AppImage gerado: ${APP_NAME}.AppImage"
+else
+    echo "❌ Falha ao gerar AppImage."
     deactivate
     exit 1
 fi
